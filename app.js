@@ -18,10 +18,16 @@ const __dirname = path.dirname(__filename);
 let rawdata = fs.readFileSync('config.json');
 let config = JSON.parse(rawdata);
 
+const bigIntReplacer = (key, value) => {
+  if (typeof value === 'bigint') {
+    return value.toString();
+  }
+  return value;
+};
 
 function checkBech32Address(address) {
   try {
-    bech32.decode(address);
+    bech32.bech32.decode(address);
     return true;
   } catch (error) {
     return false;
@@ -29,7 +35,7 @@ function checkBech32Address(address) {
 }
 function checkBech32Prefix(address) {
   try {
-    const { prefix } = bech32.decode(address); 
+    const { prefix } = bech32.bech32.decode(address); 
     if (prefix === config.prefix) {
       return true;
     } 
@@ -79,38 +85,63 @@ app.get('/faucet/last-claim', async function(req, res) {
 }) 
 
 
-app.get('/faucet/claim/:address', async function(req, res) { 
+app.get('/faucet/token/:address/:subaccountNumber/:amount', async function(req, res) { 
 
   let addressTo = req.params.address;   
-  if (!checkBech32Address(addressTo)) { 
+  let subaccountNumber = req.params.subaccountNumber;   
+  let amount = req.params.amount;   
+  
+  if (isNaN(subaccountNumber)) {
     res.status(403).json({ 
-      result: "Invalid address"
+      result: "Invalid subaccount number"
     })
     return;
   }
   
+  if (isNaN(amount)) {
+    res.status(403).json({ 
+      result: "Invalid amount"
+    })
+    return;
+  }
+  
+  if (amount <= 0) {
+    res.status(403).json({ 
+      result: "Amount must be greater than 0"
+    })
+    return;
+  }
+
   if (!checkBech32Prefix(addressTo)) { 
     res.status(403).json({ 
       result: "Invalid address prefix"
     })
     return;
   }
-
-  const account = await axios.get(config.lcdUrl + '/cosmos/bank/v1beta1/spendable_balances/' + addressTo)
-  const found = account.data.balances.find((element) => element.denom === config.denom)
-
-  if (found.amount > 0) {
+  
+  if (!checkBech32Address(addressTo)) { 
     res.status(403).json({ 
-      result: "You already have funds"
+      result: "Invalid address"
     })
     return;
   }
+
+  // TODO: Uncomment this when the token is deployed
+  // const account = await axios.get(config.lcdUrl + '/cosmos/bank/v1beta1/spendable_balances/' + addressTo)
+  // const found = account.data.balances.find((element) => element.denom === config.denom)
+
+  // if (found.amount > 0) {
+  //   res.status(403).json({ 
+  //     result: "You already have funds"
+  //   })
+  //   return;
+  // }
  
   const wallet = await DirectSecp256k1HdWallet.fromMnemonic(config.mnemonic, { prefix: config.prefix });
   const [firstAccount] = await wallet.getAccounts();
   const client = await SigningStargateClient.connectWithSigner(config.rpcUrl, wallet, {
     gasPrice: GasPrice.fromString(
-      config.gasPrice + config.denom
+      config.gasPrice + config.nativeDenom
     ) 
   }); 
 
@@ -123,14 +154,71 @@ app.get('/faucet/claim/:address', async function(req, res) {
     value: foundMsgType[1].fromPartial({
       "fromAddress": firstAccount.address,
       "toAddress": addressTo,
-      "amount": coins(config.faucetAmount, config.denom)
+      "amount": coins(req.params.amount, config.usdcDenom)
     }),
   } 
   const result = await client.signAndBroadcast(firstAccount.address, [finalMsg], "auto", "")
   assertIsDeliverTxSuccess(result);
 
   res.json({ 
-    result: result
+    result: JSON.parse(JSON.stringify(result, bigIntReplacer))
+  })
+})
+
+app.get('/faucet/native-token/:address', async function(req, res) { 
+
+  let addressTo = req.params.address;   
+  
+  if (!checkBech32Prefix(addressTo)) { 
+    res.status(403).json({ 
+      result: "Invalid address prefix"
+    })
+    return;
+  }
+  
+  if (!checkBech32Address(addressTo)) { 
+    res.status(403).json({ 
+      result: "Invalid address"
+    })
+    return;
+  }
+
+  // TODO: Uncomment this when the token is deployed
+  // const account = await axios.get(config.lcdUrl + '/cosmos/bank/v1beta1/spendable_balances/' + addressTo)
+  // const found = account.data.balances.find((element) => element.denom === config.native_denom)
+
+  // if (found.amount > 0) {
+  //   res.status(403).json({ 
+  //     result: "You already have funds"
+  //   })
+  //   return;
+  // }
+ 
+  const wallet = await DirectSecp256k1HdWallet.fromMnemonic(config.mnemonic, { prefix: config.prefix });
+  const [firstAccount] = await wallet.getAccounts();
+  const client = await SigningStargateClient.connectWithSigner(config.rpcUrl, wallet, {
+    gasPrice: GasPrice.fromString(
+      config.gasPrice + config.nativeDenom
+    ) 
+  }); 
+
+  const foundMsgType = defaultRegistryTypes.find(
+    (element) => element[0] === "/cosmos.bank.v1beta1.MsgSend"
+  )
+
+  const finalMsg = {
+    typeUrl: foundMsgType[0],
+    value: foundMsgType[1].fromPartial({
+      "fromAddress": firstAccount.address,
+      "toAddress": addressTo,
+      "amount": coins(config.faucetAmount, config.nativeDenom)
+    }),
+  } 
+  const result = await client.signAndBroadcast(firstAccount.address, [finalMsg], "auto", "")
+  assertIsDeliverTxSuccess(result);
+
+  res.json({ 
+    result: JSON.parse(JSON.stringify(result, bigIntReplacer))
   })
 })
 

@@ -1,15 +1,16 @@
 {
-  "name": "Bitcanna Testnet",
+  "name": "Nemo Testnet",
   "mnemonic": "",
-  "chainId": "bitcanna-dev-1", 
-  "lcdUrl": "https://lcd-testnet.bitcanna.io",
-  "rpcUrl": "https://rpc-testnet.bitcanna.io",
-  "denom": "ubcna",
-  "prefix": "bcna",
-  "gasPrice": 0.075,
+  "chainId": "nemo-testnet", 
+  "lcdUrl": "https://testnet-api.nemonetwork.org",
+  "rpcUrl": "https://testnet-rpc.nemonetwork.org",
+  "nativeDenom": "unemo",
+  "usdcDenom": "ibc/8E27BA2D5493AF5636760E354E46004562C46AB7EC0CC4C1CA14E9E20E2545B5",
+  "prefix": "nemo",
+  "gasPrice": 0.001,
   "faucetAmount": 1000000,
-  "memo": "Faucet from cosmos-faucet",
+  "memo": "Faucet from nemo-testnet",
   "enableUi": false,
   "enableSwagger": true,
-  "dappPort": "3000"
+  "dappPort": "6666"
 } 
