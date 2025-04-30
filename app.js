@@ -1,6 +1,7 @@
 import fs from 'fs';
 import axios from 'axios'; 
 import express from 'express';
+import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import swaggerJsdoc from "swagger-jsdoc";
@@ -11,6 +12,9 @@ import pkg from '@cosmjs/stargate';
 const { assertIsDeliverTxSuccess, SigningStargateClient, defaultRegistryTypes, GasPrice } = pkg; 
 
 const app = express();
+
+// Enable CORS for all routes
+app.use(cors());
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
