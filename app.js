@@ -88,9 +88,7 @@ app.get('/faucet/last-claim', async function(req, res) {
   })
 }) 
 
-
 app.get('/faucet/token/:address/:subaccountNumber/:amount', async function(req, res) { 
-
   let addressTo = req.params.address;   
   let subaccountNumber = req.params.subaccountNumber;   
   let amount = req.params.amount;   
@@ -158,7 +156,7 @@ app.get('/faucet/token/:address/:subaccountNumber/:amount', async function(req, 
     value: foundMsgType[1].fromPartial({
       "fromAddress": firstAccount.address,
       "toAddress": addressTo,
-      "amount": coins(req.params.amount, config.usdcDenom)
+      "amount": coins(amount, config.usdcDenom)
     }),
   } 
   const result = await client.signAndBroadcast(firstAccount.address, [finalMsg], "auto", "")
@@ -170,7 +168,6 @@ app.get('/faucet/token/:address/:subaccountNumber/:amount', async function(req, 
 })
 
 app.get('/faucet/native-token/:address', async function(req, res) { 
-
   let addressTo = req.params.address;   
   
   if (!checkBech32Prefix(addressTo)) { 
@@ -216,6 +213,55 @@ app.get('/faucet/native-token/:address', async function(req, res) {
       "fromAddress": firstAccount.address,
       "toAddress": addressTo,
       "amount": coins(config.faucetAmount, config.nativeDenom)
+    }),
+  } 
+  const result = await client.signAndBroadcast(firstAccount.address, [finalMsg], "auto", "")
+  assertIsDeliverTxSuccess(result);
+
+  res.json({ 
+    result: JSON.parse(JSON.stringify(result, bigIntReplacer))
+  })
+})
+
+
+app.get('/faucet/claim/:address', async function(req, res) { 
+  let addressTo = req.params.address;   
+  
+  if (!checkBech32Prefix(addressTo)) { 
+    res.status(403).json({ 
+      result: "Invalid address prefix"
+    })
+    return;
+  }
+  
+  if (!checkBech32Address(addressTo)) { 
+    res.status(403).json({ 
+      result: "Invalid address"
+    })
+    return;
+  }
+ 
+  const wallet = await DirectSecp256k1HdWallet.fromMnemonic(config.mnemonic, { prefix: config.prefix });
+  const [firstAccount] = await wallet.getAccounts();
+  const client = await SigningStargateClient.connectWithSigner(config.rpcUrl, wallet, {
+    gasPrice: GasPrice.fromString(
+      config.gasPrice + config.nativeDenom
+    ) 
+  }); 
+
+  const foundMsgType = defaultRegistryTypes.find(
+    (element) => element[0] === "/cosmos.bank.v1beta1.MsgSend"
+  )
+
+  var sendAmount = coins(config.faucetAmount, config.usdcDenom)
+  sendAmount = addCoins(sendAmount, coins(config.faucetAmount, config.nativeDenom))
+
+  const finalMsg = {
+    typeUrl: foundMsgType[0],
+    value: foundMsgType[1].fromPartial({
+      "fromAddress": firstAccount.address,
+      "toAddress": addressTo,
+      "amount": sendAmount
     }),
   } 
   const result = await client.signAndBroadcast(firstAccount.address, [finalMsg], "auto", "")
