@@ -253,8 +253,10 @@ app.get('/faucet/claim/:address', async function(req, res) {
     (element) => element[0] === "/cosmos.bank.v1beta1.MsgSend"
   )
 
-  var sendAmount = coins(config.faucetAmount, config.usdcDenom)
-  sendAmount = addCoins(sendAmount, coins(config.faucetAmount, config.nativeDenom))
+  const sendAmount = [
+    ...coins(config.faucetAmount, config.usdcDenom),
+    ...coins(config.faucetAmount, config.nativeDenom)
+  ]
 
   const finalMsg = {
     typeUrl: foundMsgType[0],
