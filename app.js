@@ -223,6 +223,55 @@ app.get('/faucet/native-token/:address', async function(req, res) {
   })
 })
 
+// app.get('/faucet/claim/:address', async function(req, res) { 
+//   let addressTo = req.params.address;   
+  
+//   if (!checkBech32Prefix(addressTo)) { 
+//     res.status(403).json({ 
+//       result: "Invalid address prefix"
+//     })
+//     return;
+//   }
+  
+//   if (!checkBech32Address(addressTo)) { 
+//     res.status(403).json({ 
+//       result: "Invalid address"
+//     })
+//     return;
+//   }
+ 
+//   const wallet = await DirectSecp256k1HdWallet.fromMnemonic(config.mnemonic, { prefix: config.prefix });
+//   const [firstAccount] = await wallet.getAccounts();
+//   const client = await SigningStargateClient.connectWithSigner(config.rpcUrl, wallet, {
+//     gasPrice: GasPrice.fromString(
+//       config.gasPrice + config.nativeDenom
+//     ) 
+//   }); 
+
+//   const foundMsgType = defaultRegistryTypes.find(
+//     (element) => element[0] === "/cosmos.bank.v1beta1.MsgSend"
+//   )
+
+//   const sendAmount = [
+//     ...coins(config.faucetAmountUsdc, config.usdcDenom),
+//     ...coins(config.faucetAmount, config.nativeDenom)
+//   ]
+
+//   const finalMsg = {
+//     typeUrl: foundMsgType[0],
+//     value: foundMsgType[1].fromPartial({
+//       "fromAddress": firstAccount.address,
+//       "toAddress": addressTo,
+//       "amount": sendAmount
+//     }),
+//   } 
+//   const result = await client.signAndBroadcast(firstAccount.address, [finalMsg], "auto", "")
+//   assertIsDeliverTxSuccess(result);
+
+//   res.json({ 
+//     result: JSON.parse(JSON.stringify(result, bigIntReplacer))
+//   })
+// })
 
 app.get('/faucet/claim/:address', async function(req, res) { 
   let addressTo = req.params.address;   
@@ -253,21 +302,34 @@ app.get('/faucet/claim/:address', async function(req, res) {
     (element) => element[0] === "/cosmos.bank.v1beta1.MsgSend"
   )
 
-  const sendAmount = [
-    ...coins(config.faucetAmountUsdc, config.usdcDenom),
-    ...coins(config.faucetAmount, config.nativeDenom)
-  ]
+  // const sendAmount = [
+  //   ...coins(config.faucetAmountUsdc, config.usdcDenom),
+  //   ...coins(config.faucetAmount, config.nativeDenom)
+  // ]
 
   const finalMsg = {
     typeUrl: foundMsgType[0],
     value: foundMsgType[1].fromPartial({
       "fromAddress": firstAccount.address,
       "toAddress": addressTo,
-      "amount": sendAmount
+      "amount": coins(config.faucetAmountUsdc, config.usdcDenom)
     }),
   } 
   const result = await client.signAndBroadcast(firstAccount.address, [finalMsg], "auto", "")
   assertIsDeliverTxSuccess(result);
+  
+  await new Promise(resolve => setTimeout(resolve, 3000));
+
+  const finalMsgNemo = {
+    typeUrl: foundMsgType[0],
+    value: foundMsgType[1].fromPartial({
+      "fromAddress": firstAccount.address,
+      "toAddress": addressTo,
+      "amount": coins(config.faucetAmount, config.nativeDenom)
+    }),
+  } 
+  const resultNemo = await client.signAndBroadcast(firstAccount.address, [finalMsgNemo], "auto", "")
+  assertIsDeliverTxSuccess(resultNemo);
 
   res.json({ 
     result: JSON.parse(JSON.stringify(result, bigIntReplacer))
