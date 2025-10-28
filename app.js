@@ -254,7 +254,7 @@ app.get('/faucet/claim/:address', async function(req, res) {
   )
 
   const sendAmount = [
-    ...coins(config.faucetAmount, config.usdcDenom),
+    ...coins(config.faucetAmountUsdc, config.usdcDenom),
     ...coins(config.faucetAmount, config.nativeDenom)
   ]
 
